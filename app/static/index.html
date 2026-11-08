@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QA Bitácora · Incidencias</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">✓</span>
+      <div>
+        <strong>QA Bitácora</strong>
+        <small>Incidencias de calidad sobre Azure Cosmos DB</small>
+      </div>
+    </div>
+    <span id="almacenamiento" class="badge neutral">Conectando…</span>
+  </header>
+
+  <main>
+    <section class="kpis" aria-label="Resumen">
+      <div class="kpi"><span>Total</span><strong id="k-total">–</strong></div>
+      <div class="kpi"><span>Abiertas</span><strong id="k-abiertas">–</strong></div>
+      <div class="kpi"><span>En progreso</span><strong id="k-progreso">–</strong></div>
+      <div class="kpi"><span>Resueltas o cerradas</span><strong id="k-cerradas">–</strong></div>
+      <div class="kpi danger"><span>Críticas pendientes</span><strong id="k-criticas">–</strong></div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Nueva incidencia</h2>
+        <form id="form-crear" novalidate>
+          <label>Proyecto
+            <input name="proyecto" required placeholder="tienda-web" pattern="[a-z0-9][a-z0-9\-]{1,39}" list="lista-proyectos">
+            <small>Minúsculas, números y guiones. Es la clave de partición en Cosmos DB.</small>
+          </label>
+          <datalist id="lista-proyectos"></datalist>
+          <label>Título
+            <input name="titulo" required minlength="5" maxlength="120" placeholder="¿Qué falla?">
+          </label>
+          <label>Descripción
+            <textarea name="descripcion" rows="3" maxlength="2000" placeholder="Pasos para reproducirla, qué se esperaba y qué pasó"></textarea>
+          </label>
+          <div class="row">
+            <label>Severidad
+              <select name="severidad">
+                <option value="BAJA">Baja</option>
+                <option value="MEDIA" selected>Media</option>
+                <option value="ALTA">Alta</option>
+                <option value="CRITICA">Crítica</option>
+              </select>
+            </label>
+            <label>Reportado por
+              <input name="reportado_por" required minlength="2" maxlength="60" placeholder="Tu nombre">
+            </label>
+          </div>
+          <label>Etiquetas
+            <input name="etiquetas" placeholder="checkout, datos (separadas por comas)">
+          </label>
+          <p id="error-crear" class="error" role="alert" hidden></p>
+          <button type="submit" class="primary">Registrar incidencia</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="list-head">
+          <h2>Incidencias</h2>
+          <span id="contador" class="muted"></span>
+        </div>
+        <form id="filtros" class="filters">
+          <input name="q" placeholder="Buscar por título" aria-label="Buscar por título">
+          <select name="proyecto" aria-label="Proyecto"><option value="">Proyectos</option></select>
+          <select name="estado" aria-label="Estado">
+            <option value="">Estados</option>
+            <option value="ABIERTA">Abierta</option>
+            <option value="EN_PROGRESO">En progreso</option>
+            <option value="RESUELTA">Resuelta</option>
+            <option value="CERRADA">Cerrada</option>
+          </select>
+          <select name="severidad" aria-label="Severidad">
+            <option value="">Severidades</option>
+            <option value="BAJA">Baja</option>
+            <option value="MEDIA">Media</option>
+            <option value="ALTA">Alta</option>
+            <option value="CRITICA">Crítica</option>
+          </select>
+          <input name="etiqueta" placeholder="Etiqueta" aria-label="Etiqueta">
+        </form>
+        <ul id="lista" class="list" aria-live="polite"></ul>
+        <p id="vacio" class="empty" hidden>No hay incidencias con esos filtros.</p>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="detalle">
+    <div class="dlg-head">
+      <div>
+        <span id="d-proyecto" class="muted"></span>
+        <h3 id="d-titulo"></h3>
+      </div>
+      <button type="button" class="icon" id="d-cerrar" aria-label="Cerrar">×</button>
+    </div>
+    <div class="dlg-body">
+      <div id="d-badges" class="badges"></div>
+      <p id="d-descripcion"></p>
+      <p class="muted" id="d-meta"></p>
+
+      <h4>Cambiar estado</h4>
+      <div class="row">
+        <select id="d-estado"></select>
+        <input id="d-autor-estado" placeholder="Tu nombre" maxlength="60">
+        <button type="button" id="d-btn-estado" class="primary">Aplicar</button>
+      </div>
+
+      <h4>Comentarios</h4>
+      <ul id="d-comentarios" class="timeline"></ul>
+      <form id="form-comentario" class="row">
+        <input name="autor" placeholder="Tu nombre" required minlength="2" maxlength="60">
+        <input name="texto" placeholder="Escribe un comentario" required maxlength="1000" class="grow">
+        <button type="submit">Comentar</button>
+      </form>
+
+      <h4>Historial</h4>
+      <ul id="d-historial" class="timeline"></ul>
+
+      <details>
+        <summary>Ver documento JSON en Cosmos DB</summary>
+        <pre id="d-json"></pre>
+      </details>
+      <p id="error-detalle" class="error" role="alert" hidden></p>
+      <div class="dlg-foot">
+        <button type="button" id="d-eliminar" class="danger-btn">Eliminar incidencia</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <footer>QA Bitácora · FastAPI + Azure Cosmos DB · <a href="/docs">API</a></footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

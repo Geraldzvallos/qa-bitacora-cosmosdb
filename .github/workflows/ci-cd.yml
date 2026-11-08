@@ -1,0 +1,60 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+      - name: Ejecutar pruebas
+        run: pytest
+
+  deploy:
+    name: Desplegar en Azure App Service
+    needs: test
+    # Solo en push a main y cuando ya está configurada la variable con el nombre de la app.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AZURE_WEBAPP_NAME != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar paquete
+        run: zip -r app.zip app requirements.txt -x "*/__pycache__/*"
+      - name: Desplegar
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: app.zip
+      - name: Comprobar que la app responde
+        run: |
+          url="${{ steps.deploy.outputs.webapp-url }}/health"
+          for i in $(seq 1 20); do
+            if curl -fsS "$url"; then echo; echo "App en línea: $url"; exit 0; fi
+            echo "Intento $i: la app aún no responde, espero 15 s..."
+            sleep 15
+          done
+          echo "La app no respondió a tiempo" && exit 1
