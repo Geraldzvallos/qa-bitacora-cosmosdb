@@ -124,6 +124,6 @@ Configuración de la Web App en Azure (Linux, Python 3.12):
 ## Equipo
 
 - Gerald Zevallos Pinto
-- Kevin Elvis Hinojosa
+- Kevin Elvis Hinojosa Calloapaza
 
 Licencia MIT.
